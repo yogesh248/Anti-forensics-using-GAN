@@ -37,15 +37,16 @@ def res_unit(z,in_filter):
 	z=lrelu(z,0.2)
 	return z
 
-def gen(z):
-	z_init=z
-	z=res_unit(z,2)
-	for i in range(7):
-		z=res_unit(z,64)
-	z=_conv(z,[3,3,64,2],1)
-	z=z+z_init
-	z=tf.nn.tanh(z)
-	return z	
+def gen(z,reuse):
+	with tf.variable_scope('generator',reuse=reuse):
+		z_init=z
+		z=res_unit(z,2)
+		for i in range(7):
+			z=res_unit(z,64)
+		z=_conv(z,[3,3,64,2],1)
+		z=z+z_init
+		z=tf.nn.tanh(z)
+		return z	
 
 def disc_unit(x,depth,stride,in_filter):
 	x=_conv(x,[3,3,in_filter,depth],stride)
@@ -53,39 +54,49 @@ def disc_unit(x,depth,stride,in_filter):
 	x=lrelu(x,0.2)
 	return x
 
-def disc(x):
-	x=disc_unit(x,16,1,2)
-	x=disc_unit(x,16,2,16)
-	x=disc_unit(x,32,1,16)
-	x=disc_unit(x,32,2,32)
-	x=disc_unit(x,64,1,32)
-	x=disc_unit(x,64,2,64)
-	x=disc_unit(x,128,1,64)
-	x=disc_unit(x,128,2,128)
-	x=tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(x),256)
-	x=lrelu(x,0.2)
-	x=tf.contrib.layers.fully_connected(x,1)
-	x=tf.nn.sigmoid(x)
-	return x
+def disc(x,reuse):
+	with tf.variable_scope('discriminator',reuse=reuse):
+		x=disc_unit(x,16,1,2)
+		x=disc_unit(x,16,2,16)
+		x=disc_unit(x,32,1,16)
+		x=disc_unit(x,32,2,32)
+		x=disc_unit(x,64,1,32)
+		x=disc_unit(x,64,2,64)
+		x=disc_unit(x,128,1,64)
+		x=disc_unit(x,128,2,128)
+		x=tf.contrib.layers.fully_connected(tf.contrib.layers.flatten(x),256)
+		x=lrelu(x,0.2)
+		x=tf.contrib.layers.fully_connected(x,1)
+		x=tf.nn.sigmoid(x)
+		return x
 
 if __name__=='__main__':
 	tf.reset_default_graph()
-	image=Image.open("../dataset/cropped_train/crop_1.png")
-	arr=np.array(image)
-	arr=arr.reshape(-1,512,512,2)
+	orig=Image.open("../dataset/cropped_train/crop_1.png")
+	orig=np.array(orig)
+	orig=orig.reshape(-1,512,512,2)
+	mf=Image.open("../dataset/cropped_train_mf/mf_crop_1.png")
+	mf=np.array(mf)
+	mf=mf.reshape(-1,512,512,2)
 	z=tf.placeholder(tf.float32,[None,512,512,2])
 	x=tf.placeholder(tf.float32,[None,512,512,2])
-	g_sample=gen(z)
-	d_real=disc(x)
-	d_fake=disc(z)
-	init_g=tf.global_variables_initializer()
+	rest=gen(z,reuse=False)
+	d_orig=disc(x,reuse=False)
+	d_rest=disc(rest,reuse=True)
+	d_loss=-tf.reduce_mean(tf.log(d_orig)+tf.log(1.-d_rest))
+	g_loss=-tf.reduce_mean(tf.log(d_rest))
+	tvars=tf.trainable_variables()
+	d_vars=[var for var in tvars if var.name.startswith('discriminator')]
+	g_vars=[var for var in tvars if var.name.startswith('generator')]
+	d_train=tf.train.AdamOptimizer(learning_rate=5e-6,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(d_loss,var_list=d_vars)
+	g_train=tf.train.AdamOptimizer(learning_rate=5e-4,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(g_loss,var_list=g_vars)
+	init=tf.global_variables_initializer()
 	with tf.Session() as sess:
-		sess.run(init_g)
-		out=sess.run(d_fake,feed_dict={z:arr})
-		print(out)
-		out=sess.run(g_sample,feed_dict={z:arr})
-		out=out.reshape(512,512,2)
-		print(out.shape)
-		im=Image.fromarray(out,mode='LA')
-		im.show()
+		sess.run(init)
+		dloss=sess.run(d_loss,feed_dict={x:orig,z:mf})
+		gloss=sess.run(g_loss,feed_dict={z:mf})
+		print(dloss)
+		print(gloss)
+		
+		
 
