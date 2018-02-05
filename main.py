@@ -70,14 +70,30 @@ def disc(x,reuse):
 		x=tf.nn.sigmoid(x)
 		return x
 
+def next_batch_orig(step,batch_size):
+	arr=np.empty([batch_size,512,512,2])
+	j=0
+	for i in range(step,step+batch_size):
+		orig=Image.open("../dataset/cropped_train/crop_{0}.png".format(i))
+		orig=np.array(orig)
+		arr[j]=orig
+		j=j+1
+	return arr	
+
+def next_batch_mf(step,batch_size):
+	arr=np.empty([batch_size,512,512,2])
+	j=0
+	for i in range(step,step+batch_size):
+		mf=Image.open("../dataset/cropped_train_mf/mf_crop_{0}.png".format(i))
+		mf=np.array(mf)
+		arr[j]=mf
+		j=j+1
+	return arr	
+
 if __name__=='__main__':
+	batch_size=2
+	num_epochs=1
 	tf.reset_default_graph()
-	orig=Image.open("../dataset/cropped_train/crop_1.png")
-	orig=np.array(orig)
-	orig=orig.reshape(-1,512,512,2)
-	mf=Image.open("../dataset/cropped_train_mf/mf_crop_1.png")
-	mf=np.array(mf)
-	mf=mf.reshape(-1,512,512,2)
 	z=tf.placeholder(tf.float32,[None,512,512,2])
 	x=tf.placeholder(tf.float32,[None,512,512,2])
 	rest=gen(z,reuse=False)
@@ -93,10 +109,15 @@ if __name__=='__main__':
 	init=tf.global_variables_initializer()
 	with tf.Session() as sess:
 		sess.run(init)
-		dloss=sess.run(d_loss,feed_dict={x:orig,z:mf})
-		gloss=sess.run(g_loss,feed_dict={z:mf})
-		print(dloss)
-		print(gloss)
+		for i in range(num_epochs):
+			step=1
+			for j in range(80):
+				X=next_batch_orig(step,batch_size)
+				Z=next_batch_mf(step,batch_size)
+				step=step+batch_size
+				dloss=sess.run(d_loss,feed_dict={x:X,z:Z})
+				gloss=sess.run(g_loss,feed_dict={z:Z})
+				print("Iteration {0} Dloss={1} Gloss={2}".format(j,dloss,gloss))
 		
 		
 
