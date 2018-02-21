@@ -3,36 +3,36 @@ import numpy as np
 import rawpy
 from PIL import Image
 from PIL import ImageFilter
-import Augmentor as aug
 
 '''
 #number the images
 ctr=1
-for file in os.listdir(".../dataset/original"):
-	os.rename(".../dataset/original/"+file,".../dataset/original/orig_"+str(ctr)+".NEF")
+for file in os.listdir("../dataset/original"):
+	os.rename("../dataset/original/"+file,"../dataset/original/orig_"+str(ctr)+".NEF")
 	ctr=ctr+1
 '''
-
 '''
-#convert to grayscale
-ctr=1
-os.mkdir(".../dataset/grayscale")
-for file in os.listdir(".../dataset/original"):
-	raw=rawpy.imread(".../dataset/original/"+file)
+for i in range(788,1001):
+	raw=rawpy.imread("../dataset/original/orig_"+str(i)+".NEF")
 	rgb=raw.postprocess()
 	image=Image.fromarray(rgb)
 	gray=image.convert('LA')
-	gray.save(".../dataset/grayscale/gray_"+str(ctr)+".png")
+	gray.save("../dataset/grayscale/gray_"+str(i)+".png")
+'''
+'''
+#convert to grayscale
+ctr=1
+for file in os.listdir("../dataset/original"):
+	raw=rawpy.imread("../dataset/original/"+file)
+	rgb=raw.postprocess()
+	image=Image.fromarray(rgb)
+	gray=image.convert('LA')
+	gray.save("../dataset/grayscale/gray_"+str(ctr)+".png")
 	ctr=ctr+1
 '''
 '''
 #crop images
 ctr=1
-os.mkdir("../dataset/cropped")
-os.mkdir("../dataset/cropped_train")
-os.mkdir("../dataset/cropped_test")
-os.mkdir("../dataset/cropped_train_mf")
-os.mkdir("../dataset/cropped_test_mf")
 for file in os.listdir("../dataset/grayscale"):
 	image=Image.open("../dataset/grayscale/"+file)
 	width,height=image.size
@@ -57,22 +57,34 @@ for file in os.listdir("../dataset/grayscale"):
 	ctr=ctr+1
 '''
 
-'''
-#augment dataset
-p=aug.Pipeline("../dataset/cropped_train")
-p.rotate(probability=0.5,max_left_rotation=10,max_right_rotation=10)
-p.flip_left_right(probability=0.5)
-p.flip_top_bottom(probability=0.5)
-p.sample(500)
-'''
-
 
 #median filter
-for file in os.listdir("../dataset/cropped_train"):
-	image=Image.open("../dataset/cropped_train/"+file)
+'''
+for i in range(1,3201):
+	image=Image.open("../dataset/cropped_train/crop_"+str(i)+".png")
 	med=image.filter(ImageFilter.MedianFilter(size=3))
-	med.save("../dataset/cropped_train_mf/mf_"+file)
-for file in os.listdir("../dataset/cropped_test"):
-	image=Image.open("../dataset/cropped_test/"+file)
+	med.save("../dataset/cropped_train_mf/mf_crop_"+str(i)+".png")	
+for i in range(3201,4001):
+	image=Image.open("../dataset/cropped_test/crop_"+str(i)+".png")
 	med=image.filter(ImageFilter.MedianFilter(size=3))
-	med.save("../dataset/cropped_test_mf/mf_"+file)
+	med.save("../dataset/cropped_test_mf/mf_crop_"+str(i)+".png")	
+'''
+
+'''
+os.chdir("../dataset/train_orig")
+for i in range(1,3201):
+	os.rename("crop_"+str(i)+".png","orig_"+str(i)+".png")
+os.chdir("../train_mf")
+for i in range(1,3201):	
+	os.rename("mf_crop_"+str(i)+".png","mf_"+str(i)+".png")
+ctr=1	
+os.chdir("../test_orig")
+for i in range(3201,4001):
+	os.rename("crop_"+str(i)+".png","orig_"+str(ctr)+".png")
+	ctr=ctr+1
+ctr=1	
+os.chdir("../test_mf")
+for i in range(3201,4001):	
+	os.rename("mf_crop_"+str(i)+".png","mf_"+str(ctr)+".png")
+	ctr=ctr+1
+'''	

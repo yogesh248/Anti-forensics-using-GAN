@@ -74,7 +74,7 @@ def next_batch_orig(step,batch_size):
 	arr=np.empty([batch_size,512,512,2])
 	j=0
 	for i in range(step,step+batch_size):
-		orig=Image.open("../dataset/cropped_train/crop_{0}.png".format(i))
+		orig=Image.open("../dataset/train_orig/orig_{0}.png".format(i))
 		orig=np.array(orig)
 		arr[j]=orig
 		j=j+1
@@ -84,7 +84,7 @@ def next_batch_mf(step,batch_size):
 	arr=np.empty([batch_size,512,512,2])
 	j=0
 	for i in range(step,step+batch_size):
-		mf=Image.open("../dataset/cropped_train_mf/mf_crop_{0}.png".format(i))
+		mf=Image.open("../dataset/train_mf/mf_{0}.png".format(i))
 		mf=np.array(mf)
 		arr[j]=mf
 		j=j+1
