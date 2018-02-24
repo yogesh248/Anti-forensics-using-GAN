@@ -142,16 +142,17 @@ if __name__=='__main__':
 	d_train=tf.train.AdamOptimizer(learning_rate=5e-6,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(d_loss,var_list=d_vars)
 	g_train=tf.train.AdamOptimizer(learning_rate=5e-4,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(g_loss,var_list=g_vars)
 	init=tf.global_variables_initializer()
+	saver=tf.train.Saver()
 	with tf.Session() as sess:
 		sess.run(init)
 		for i in range(num_epochs):
 			step=1
-			for j in range(50):
+			for j in range(10):
 				X=next_batch_orig(step,batch_size)
 				Z=next_batch_mf(step,batch_size)
 				step=step+batch_size
-				,dloss=sess.run([d_train,d_loss],feed_dict={x:X,z:Z})
-				,gloss=sess.run([g_train,g_loss],feed_dict={z:Z})
+				_,dloss=sess.run([d_train,d_loss],feed_dict={x:X,z:Z})
+				_,gloss=sess.run([g_train,g_loss],feed_dict={z:Z})
 				print("Iteration {0} Dloss={1} Gloss={2}".format(j,dloss,gloss))
 				Z=Image.open("../dataset/test_mf/mf_{0}.png".format(j+1))
 				Z=np.array(Z)
@@ -159,7 +160,8 @@ if __name__=='__main__':
 				image=sess.run(rest,feed_dict={z:Z})
 				image=image.reshape((128,128))
 				image=Image.fromarray(image,mode='L')
-				image.save("../temp/gen_{0}.png".format(j+1))
+				image.save("../temp/gen/gen_{0}.png".format(j+1))
+		saver.save(sess,"../temp/ckpt/model.ckpt")		
 		
 		
 
