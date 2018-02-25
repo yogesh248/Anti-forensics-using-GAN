@@ -208,6 +208,8 @@ def next_batch_mf(step,batch_size):
 		j=j+1
 	return arr	
 
+train_size=3200
+test_size=800
 tf.reset_default_graph()
 z=tf.placeholder(tf.float32,[None,128,128,1])
 x=tf.placeholder(tf.float32,[None,128,128,1])
@@ -232,7 +234,7 @@ def train(batch_size,num_epochs):
 		sess.run(init)
 		for i in range(num_epochs):
 			step=1
-			for j in range(10):
+			for j in range(int(train_size/batch_size)):
 				X=next_batch_orig(step,batch_size)
 				Z=next_batch_mf(step,batch_size)
 				step=step+batch_size
@@ -246,14 +248,14 @@ def train(batch_size,num_epochs):
 				image=image.reshape((128,128))
 				image=Image.fromarray(image,mode='L')
 				image.save("../temp/gen/gen_{0}.png".format(j+1))
-		saver.save(sess,"../temp/ckpt/model.ckpt")		
+			saver.save(sess,"../temp/ckpt/model.ckpt",global_step=i+1)		
 
 def test():
 	tf.get_default_graph()
-	saver=tf.train.import_meta_graph("../temp/ckpt/model.ckpt.meta")
+	saver=tf.train.import_meta_graph("../temp/ckpt/model.ckpt-1.meta")
 	with tf.Session() as sess:
 		saver.restore(sess,tf.train.latest_checkpoint("../temp/ckpt/"))
-		for i in range(1,11):
+		for i in range(1,test_size+1):
 			print("Iteration {0}".format(i))
 			original_image="../dataset/test_orig/orig_{0}.png".format(i)
 			mf_image="../dataset/test_mf/mf_{0}.png".format(i)
@@ -290,7 +292,7 @@ def test():
 			print("mSSIM={0}".format(ssim))
 
 if __name__=='__main__':
-	batch_size=2
+	batch_size=16
 	num_epochs=1
 	train(batch_size,num_epochs)
 	test()	
