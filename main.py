@@ -292,7 +292,7 @@ def test():
 			print("mSSIM={0}".format(ssim))
 
 if __name__=='__main__':
-	batch_size=16
+	batch_size=8
 	num_epochs=1
 	train(batch_size,num_epochs)
 	test()	
