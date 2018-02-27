@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import sys
 import math
+import random
 from PIL import Image, ImageOps
 from ssim import SSIM
 from ssim.utils import get_gaussian_kernel
@@ -226,7 +227,6 @@ g_train=tf.train.AdamOptimizer(learning_rate=5e-4,beta1=0.9,beta2=0.999,epsilon=
 init=tf.global_variables_initializer()
 saver=tf.train.Saver()
 
-
 def train(batch_size,num_epochs):
 	os.system("rm -rf ../temp/gen/*")
 	os.system("rm -rf ../temp/ckpt/*")
@@ -234,25 +234,32 @@ def train(batch_size,num_epochs):
 		sess.run(init)
 		for i in range(num_epochs):
 			step=1
-			for j in range(int(train_size/batch_size)):
+			for j in range(1,int(train_size/batch_size)+1):
 				X=next_batch_orig(step,batch_size)
 				Z=next_batch_mf(step,batch_size)
 				step=step+batch_size
 				_,dloss=sess.run([d_train,d_loss],feed_dict={x:X,z:Z})
 				_,gloss=sess.run([g_train,g_loss],feed_dict={z:Z})
 				print("Iteration {0} Dloss={1} Gloss={2}".format(j,dloss,gloss))
-				Z=Image.open("../dataset/test_mf/mf_{0}.png".format(j+1))
-				Z=np.array(Z)
-				Z=Z.reshape((1,128,128,1))
-				image=sess.run(rest,feed_dict={z:Z})
-				image=image.reshape((128,128))
-				image=Image.fromarray(image,mode='L')
-				image.save("../temp/gen/gen_{0}.png".format(j+1))
-			saver.save(sess,"../temp/ckpt/model.ckpt",global_step=i+1)		
+				if j%10==0:
+					k=random.randint(1,test_size+1)
+					Z=Image.open("../dataset/test_mf/mf_{0}.png".format(k))
+					Z=np.array(Z)
+					Z=Z.reshape((1,128,128,1))
+					image=sess.run(rest,feed_dict={z:Z})
+					image=image.reshape((128,128))
+					image=Image.fromarray(image,mode='L')
+					image.save("../temp/gen/{0}_gen_{1}.png".format(j,k))
+				if j%50==0:	
+					saver.save(sess,"../temp/ckpt/model.ckpt",global_step=j)		
 
 def test():
+	oSSIM=0
+	mSSIM=0
+	oPSNR=0
+	mPSNR=0
 	tf.get_default_graph()
-	saver=tf.train.import_meta_graph("../temp/ckpt/model.ckpt-1.meta")
+	saver=tf.train.import_meta_graph("../temp/ckpt/model.ckpt-400.meta")
 	with tf.Session() as sess:
 		saver.restore(sess,tf.train.latest_checkpoint("../temp/ckpt/"))
 		for i in range(1,test_size+1):
@@ -280,21 +287,30 @@ def test():
 			mf_y, mf_cb, mf_cr = get_yuv(mf_image_object)
 			psnr=calculate_psnr(original_y, gen_y, original_cb, gen_cb, original_cr, gen_cr, original_npix)
 			print("oPSNR={0}".format(psnr))
+			oPSNR=oPSNR+psnr
 			psnr=calculate_psnr(mf_y, gen_y, mf_cb, gen_cb, mf_cr, gen_cr, mf_npix)
 			print("mPSNR={0}".format(psnr))
+			mPSNR=mPSNR+psnr
 			size = (256,256)
 			original_image_object = original_image_object.resize(size, Image.ANTIALIAS)
 			gen_image_object = gen_image_object.resize(size, Image.ANTIALIAS)
 			mf_image_object = mf_image_object.resize(size, Image.ANTIALIAS)
 			ssim = SSIM(original_image_object, gaussian_kernel_1d).ssim_value(gen_image_object)
 			print("oSSIM={0}".format(ssim))
+			oSSIM=oSSIM+ssim
 			ssim = SSIM(mf_image_object, gaussian_kernel_1d).ssim_value(gen_image_object)
 			print("mSSIM={0}".format(ssim))
+			mSSIM=mSSIM+ssim
+	print("Average: ")
+	print("oPSNR={0}".format(oPSNR/test_size))
+	print("mPSNR={0}".format(mPSNR/test_size))
+	print("oSSIM={0}".format(oSSIM/test_size))
+	print("mSSIM={0}".format(mSSIM/test_size))		
 
 if __name__=='__main__':
 	batch_size=8
 	num_epochs=1
 	train(batch_size,num_epochs)
-	test()	
+	#test()	
 		
 
