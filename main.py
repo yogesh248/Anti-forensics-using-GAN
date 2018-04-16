@@ -217,13 +217,19 @@ x=tf.placeholder(tf.float32,[None,128,128,1])
 rest=gen(z,reuse=False)
 d_orig=disc(x,reuse=False)
 d_rest=disc(rest,reuse=True)
-d_loss=-tf.reduce_mean(tf.log(d_orig)+tf.log(1.-d_rest))
-g_loss=-tf.reduce_mean(tf.log(d_rest))
+#d_loss=-tf.reduce_mean(tf.log(d_orig)+tf.log(1.-d_rest))
+#g_loss=-tf.reduce_mean(tf.log(d_rest))
+d_loss=-tf.reduce_mean(d_orig+(1.-d_rest))
+g_loss=-tf.reduce_mean(d_rest)
 tvars=tf.trainable_variables()
 d_vars=[var for var in tvars if var.name.startswith('discriminator')]
 g_vars=[var for var in tvars if var.name.startswith('generator')]
-d_train=tf.train.AdamOptimizer(learning_rate=5e-6,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(d_loss,var_list=d_vars)
-g_train=tf.train.AdamOptimizer(learning_rate=5e-4,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(g_loss,var_list=g_vars)
+#d_train=tf.train.AdamOptimizer(learning_rate=5e-6,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(d_loss,var_list=d_vars)
+#g_train=tf.train.AdamOptimizer(learning_rate=5e-4,beta1=0.9,beta2=0.999,epsilon=1e-8).minimize(g_loss,var_list=g_vars)
+d_train=tf.train.RMSPropOptimizer(learning_rate=5e-6).minimize(d_loss,var_list=d_vars)
+g_train=tf.train.RMSPropOptimizer(learning_rate=5e-4).minimize(g_loss,var_list=g_vars)
+clip_D=[p.assign(tf.clip_by_value(p,-0.01,0.01)) for p in d_vars]
+init=tf.global_variables_initializer()
 init=tf.global_variables_initializer()
 saver=tf.train.Saver()
 
@@ -259,7 +265,7 @@ def test():
 	oPSNR=0
 	mPSNR=0
 	tf.get_default_graph()
-	saver=tf.train.import_meta_graph("../temp/ckpt/model.ckpt-400.meta")
+	saver=tf.train.import_meta_graph("../temp/ckpt/model.ckpt-50.meta")
 	with tf.Session() as sess:
 		saver.restore(sess,tf.train.latest_checkpoint("../temp/ckpt/"))
 		for i in range(1,test_size+1):
@@ -268,10 +274,12 @@ def test():
 			mf_image="../dataset/test_mf/mf_{0}.png".format(i)
 			original_image_object=Image.open(original_image)
 			mf_image_object=Image.open(mf_image)
+			test_size_s=16
 			Z=np.array(mf_image_object)
 			Z=Z.reshape((1,128,128,1))
 			image=sess.run(rest,feed_dict={z:Z})
 			image=image.reshape((128,128))
+			test_size_p=160
 			gen_image_object=Image.fromarray(image,mode='L')
 			original_width, original_height, original_npix = get_image_data_from_file(original_image)
 			gen_width, gen_height, gen_npix = get_image_data(gen_image_object)
@@ -286,31 +294,27 @@ def test():
 			gen_y, gen_cb, gen_cr = get_yuv(gen_image_object)
 			mf_y, mf_cb, mf_cr = get_yuv(mf_image_object)
 			psnr=calculate_psnr(original_y, gen_y, original_cb, gen_cb, original_cr, gen_cr, original_npix)
-			print("oPSNR={0}".format(psnr))
 			oPSNR=oPSNR+psnr
 			psnr=calculate_psnr(mf_y, gen_y, mf_cb, gen_cb, mf_cr, gen_cr, mf_npix)
-			print("mPSNR={0}".format(psnr))
 			mPSNR=mPSNR+psnr
 			size = (256,256)
 			original_image_object = original_image_object.resize(size, Image.ANTIALIAS)
 			gen_image_object = gen_image_object.resize(size, Image.ANTIALIAS)
 			mf_image_object = mf_image_object.resize(size, Image.ANTIALIAS)
 			ssim = SSIM(original_image_object, gaussian_kernel_1d).ssim_value(gen_image_object)
-			print("oSSIM={0}".format(ssim))
 			oSSIM=oSSIM+ssim
 			ssim = SSIM(mf_image_object, gaussian_kernel_1d).ssim_value(gen_image_object)
-			print("mSSIM={0}".format(ssim))
 			mSSIM=mSSIM+ssim
 	print("Average: ")
-	print("oPSNR={0}".format(oPSNR/test_size))
-	print("mPSNR={0}".format(mPSNR/test_size))
-	print("oSSIM={0}".format(oSSIM/test_size))
-	print("mSSIM={0}".format(mSSIM/test_size))		
+	print("oPSNR={0}".format(oPSNR/test_size_p))
+	print("mPSNR={0}".format(mPSNR/test_size_p))
+	print("oSSIM={0}".format(oSSIM/test_size_s))
+	print("mSSIM={0}".format(mSSIM/test_size_s))		
 
 if __name__=='__main__':
-	batch_size=8
-	num_epochs=1
-	train(batch_size,num_epochs)
-	#test()	
+	batch_size=16
+	num_epochs=50
+	#train(batch_size,num_epochs)
+	test()	
 		
 
